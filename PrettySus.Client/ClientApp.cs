@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,12 +19,16 @@ namespace PrettySus.Client
 
         private int _playerCount = 0;
         private PlayerState[] _players = new PlayerState[16];
+        private Dictionary<int, PlayerAnimationState> _playerAnimations = new();
         private int _playerId = 0;
         private NetDataWriter _writer = new();
         private Stopwatch _timer = new();
         private PlayerInput _input = new();
         private long _lastGameState = 0;
         private long _lastInput = 0;
+
+        private Texture2D _playerIdle;
+        private Texture2D[] _playerWalk;
 
         public ClientApp()
         {
@@ -35,10 +40,23 @@ namespace PrettySus.Client
             _listener.NetworkReceiveEvent += OnNetworkReceiveEvent;
 
             Raylib.InitWindow(1280, 720, "PrettySus");
+
+            _playerIdle = Raylib.LoadTexture("Assets/Player/p1_stand.png");
+            _playerWalk = new Texture2D[11];
+            for (var i = 0; i < _playerWalk.Length; i++)
+            {
+                _playerWalk[i] = Raylib.LoadTexture($"Assets/Player/p1_walk{(i + 1):00}.png");
+            }
         }
 
         public void Dispose()
         {
+            Raylib.UnloadTexture(_playerIdle);
+            for (var i = 0; i < _playerWalk.Length; i++)
+            {
+                Raylib.UnloadTexture(_playerWalk[i]);
+            }
+
             Raylib.CloseWindow();
 
             _client.Stop();
@@ -127,19 +145,47 @@ namespace PrettySus.Client
                 for (var i = 0; i < _playerCount; i++)
                 {
                     var player = _players[i];
-                    if (player.PlayerId == _playerId)
+
+                    if (!_playerAnimations.TryGetValue(player.PlayerId, out var animationState))
                     {
+                        animationState = new PlayerAnimationState();
+                        _playerAnimations.Add(player.PlayerId, animationState);
                     }
 
-                    var x = player.PrevX + (player.X - player.PrevX) * alpha;
-                    var y = player.PrevY + (player.Y - player.PrevY) * alpha;
+                    var diffX = (player.X - player.PrevX);
+                    var diffY = (player.Y - player.PrevY);
 
-                    Raylib.DrawRectangle((int)x, (int)y, 32, 64, new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255));
+                    Texture2D texture = _playerIdle;
+                    if (diffX != 0.0f || diffY != 0.0f)
+                    {
+                        animationState.Direction = diffX >= 0.0f ? 1.0f : -1.0f;
+
+                        if (!animationState.IsWalking)
+                        {
+                            animationState.IsWalking = true;
+                        }
+
+                        var timeSinceLastFrame = _timer.ElapsedMilliseconds - animationState.LastFrameTime;
+                        if (timeSinceLastFrame >= 100)
+                        {
+                            animationState.CurrentFrame++;
+                            animationState.LastFrameTime = _timer.ElapsedMilliseconds;
+                        }
+
+                        texture = _playerWalk[animationState.CurrentFrame % _playerWalk.Length];
+                    }
+                    else
+                    {
+                        animationState.IsWalking = false;
+                    }
+
+                    var x = player.PrevX + diffX * alpha;
+                    var y = player.PrevY + diffY * alpha;
+
+                    Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2(x, y), new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255));
                 }
 
                 Raylib.EndDrawing();
-
-                Thread.Sleep(0);
             }
         }
     }
