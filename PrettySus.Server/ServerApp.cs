@@ -100,6 +100,8 @@ namespace PrettySus.Server
             var watch = new Stopwatch();
             watch.Start();
 
+            var lastTick = 0L;
+
             var running = true;
             while (running)
             {
@@ -110,8 +112,13 @@ namespace PrettySus.Server
 
                 _server.PollEvents();
 
-                if (watch.ElapsedMilliseconds >= 16)
+                var timeSinceLastTick = watch.ElapsedMilliseconds - lastTick;
+                if (timeSinceLastTick >= Constants.TickLengthInMs)
                 {
+                    lastTick = watch.ElapsedMilliseconds;
+
+                    var dt = timeSinceLastTick / 1000.0f;
+
                     foreach (var input in _playerInputs)
                     {
                         if (_players.TryGetValue(input.Key, out var playerState))
@@ -120,8 +127,8 @@ namespace PrettySus.Server
                             var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
                             var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
 
-                            playerState.X += x * 10;
-                            playerState.Y += y * 10;
+                            playerState.X += x * 500 * dt;
+                            playerState.Y += y * 500 * dt;
                         }
                     }
 
@@ -129,8 +136,6 @@ namespace PrettySus.Server
                     {
                         SendGameState(player.Key, player.Value);
                     }
-
-                    watch.Restart();
                 }
 
                 Thread.Sleep(0);
@@ -158,12 +163,6 @@ namespace PrettySus.Server
             }
 
             peer.Send(_writer, DeliveryMethod.Sequenced);
-        }
-
-        class PlayerInput
-        {
-            public float X;
-            public float Y;
         }
     }
 }
