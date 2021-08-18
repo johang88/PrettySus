@@ -222,7 +222,7 @@ namespace PrettySus.Client
                     var x = player.PrevX + diffX * alpha;
                     var y = player.PrevY + diffY * alpha;
 
-                    camera.target = new Vector2(x, y);
+                    camera.target = new Vector2((int)x, (int)y);
                 }
             }
 
