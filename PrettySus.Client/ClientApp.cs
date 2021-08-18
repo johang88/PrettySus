@@ -40,7 +40,7 @@ namespace PrettySus.Client
         private ImGuiImplementation _imgui;
 
         private ClientState _state = ClientState.Disconnected;
-        private string _serverIp = "127.0.0.1";
+        private string _serverAddress = "127.0.0.1";
         private int _serverPort = 9050;
 
         public ClientApp()
@@ -119,12 +119,12 @@ namespace PrettySus.Client
             ImGui.SetNextWindowSize(new Vector2(400, 200), ImGuiCond.Always);
             ImGui.Begin("Menu", ImGuiWindowFlags.NoSavedSettings);
 
-            ImGui.InputText("IP", ref _serverIp, 32);
+            ImGui.InputText("Host", ref _serverAddress, 32);
             ImGui.InputInt("Port", ref _serverPort);
 
             if (ImGui.Button("Connect"))
             {
-                _client.Connect(_serverIp, _serverPort, "TEST");
+                _client.Connect(_serverAddress, _serverPort, "TEST");
                 _state = ClientState.Connecting;
             }
             ImGui.End();
