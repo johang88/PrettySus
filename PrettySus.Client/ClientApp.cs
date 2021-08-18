@@ -120,6 +120,15 @@ namespace PrettySus.Client
             reader.Recycle();
         }
 
+        private void Connect()
+        {
+            _writer.Reset();
+            _writer.Put(_name, Constants.MaxNameLength);
+
+            _client.Connect(_serverAddress, _serverPort, _writer);
+            _state = ClientState.Connecting;
+        }
+
         private void UpdateDisconnected()
         {
             ImGui.SetNextWindowSize(new Vector2(400, 200), ImGuiCond.Always);
@@ -131,11 +140,7 @@ namespace PrettySus.Client
 
             if (ImGui.Button("Connect") && _name.Length > 0)
             {
-                _writer.Reset();
-                _writer.Put(_name, Constants.MaxNameLength);
-
-                _client.Connect(_serverAddress, _serverPort, _writer);
-                _state = ClientState.Connecting;
+                Connect();
             }
             ImGui.End();
 
@@ -237,10 +242,12 @@ namespace PrettySus.Client
                 var x = player.PrevX + diffX * alpha;
                 var y = player.PrevY + diffY * alpha;
 
-                var fontSize = 20;
+                var fontSize = 30;
                 var width = Raylib.MeasureText(player.Name, fontSize);
-                Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)y - fontSize * 2, 16, Color.WHITE);
-                Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2(x, y), new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255));
+                Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)(y - fontSize), fontSize, Color.WHITE);
+                
+                var color = new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255);
+                Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2((int)x, (int)y), color);
             }
         }
 
