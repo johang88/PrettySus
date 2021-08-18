@@ -110,7 +110,7 @@ namespace PrettySus.Client
                 io.KeysDown[i] = Raylib.IsKeyDown((KeyboardKey)i);
             }
 
-            io.AddInputCharacter((uint)Raylib.GetKeyPressed());
+            io.AddInputCharacter((uint)Raylib.GetCharPressed());
         }
 
         public void Begin()
@@ -178,6 +178,8 @@ namespace PrettySus.Client
         {
             ImGui.EndFrame();
             ImGui.Render();
+
+            Rlgl.rlDrawRenderBatchActive();
 
             Rlgl.rlDisableBackfaceCulling();
 
