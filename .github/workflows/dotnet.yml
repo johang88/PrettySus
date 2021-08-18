@@ -25,8 +25,20 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
       
-    - name: Publish win
+    - name: Publish win-x64
       run: dotnet publish -c Release -r win7-x64
       
     - name: Publish linux-x64
       run: dotnet publish -c Release -r linux-x64
+
+    - name: Upload Server Build Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: server-linux-x64
+        path: /home/runner/work/PrettySus/PrettySus/PrettySus.Server/bin/Release/net5.0/linux-x64/publish/
+
+    - name: Upload Client Build Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: client-win-x64
+        path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/
