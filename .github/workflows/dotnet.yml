@@ -38,3 +38,36 @@ jobs:
       with:
         name: client-win-x64
         path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Server Asset
+      id: upload-release-server-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./server-linux-x64
+        asset_name: server-linux-x64
+        asset_content_type: application/zip
+        
+    - name: Upload Client Asset
+      id: upload-release-client-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./client-win-x64
+        asset_name: client-win-x64
+        asset_content_type: application/zip
