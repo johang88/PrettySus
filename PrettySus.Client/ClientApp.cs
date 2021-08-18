@@ -237,6 +237,9 @@ namespace PrettySus.Client
                 var x = player.PrevX + diffX * alpha;
                 var y = player.PrevY + diffY * alpha;
 
+                var fontSize = 20;
+                var width = Raylib.MeasureText(player.Name, fontSize);
+                Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)y - fontSize * 2, 16, Color.WHITE);
                 Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2(x, y), new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255));
             }
         }
@@ -252,7 +255,7 @@ namespace PrettySus.Client
                 _imgui.Begin();
 
                 Raylib.BeginDrawing();
-                Raylib.ClearBackground(Color.WHITE);
+                Raylib.ClearBackground(Color.BLACK);
 
                 switch (_state)
                 {
