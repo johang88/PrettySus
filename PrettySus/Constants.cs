@@ -10,5 +10,7 @@ namespace PrettySus
     {
         public const int TickRate = 30;
         public const int TickLengthInMs = 1000 / TickRate;
+
+        public const int MaxNameLength = 30;
     }
 }

@@ -6,8 +6,16 @@ using System.Threading.Tasks;
 
 namespace PrettySus
 {
+    public enum PlayerConnectionState : byte
+    {
+        Connecting,
+        Connected
+    }
+
     public class PlayerState
     {
+        public string Name;
+        public PlayerConnectionState ConnectionState;
         public int PlayerId;
         public float X;
         public float Y;

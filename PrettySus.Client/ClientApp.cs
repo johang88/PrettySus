@@ -42,6 +42,7 @@ namespace PrettySus.Client
         private ClientState _state = ClientState.Disconnected;
         private string _serverAddress = "127.0.0.1";
         private int _serverPort = 9050;
+        private string _name = "";
 
         public ClientApp()
         {
@@ -94,10 +95,15 @@ namespace PrettySus.Client
                             _players[i] = new PlayerState();
 
                         _players[i].PlayerId = reader.GetInt();
+                        
+                        _players[i].Name = reader.GetString();
+                        _players[i].ConnectionState = (PlayerConnectionState)reader.GetByte();
+                        
                         _players[i].PrevX = _players[i].X;
                         _players[i].PrevY = _players[i].Y;
                         _players[i].X = reader.GetFloat();
                         _players[i].Y = reader.GetFloat();
+
                         _players[i].ColorR = reader.GetByte();
                         _players[i].ColorG = reader.GetByte();
                         _players[i].ColorB = reader.GetByte();
@@ -120,11 +126,15 @@ namespace PrettySus.Client
             ImGui.Begin("Menu", ImGuiWindowFlags.NoSavedSettings);
 
             ImGui.InputText("Host", ref _serverAddress, 32);
+            ImGui.InputText("Name", ref _name, 32);
             ImGui.InputInt("Port", ref _serverPort);
 
-            if (ImGui.Button("Connect"))
+            if (ImGui.Button("Connect") && _name.Length > 0)
             {
-                _client.Connect(_serverAddress, _serverPort, "TEST");
+                _writer.Reset();
+                _writer.Put(_name, Constants.MaxNameLength);
+
+                _client.Connect(_serverAddress, _serverPort, _writer);
                 _state = ClientState.Connecting;
             }
             ImGui.End();

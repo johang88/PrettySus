@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace PrettySus.Server
 {
@@ -35,6 +36,8 @@ namespace PrettySus.Server
             _listener.PeerConnectedEvent += OnPeerConnectedEvent;
             _listener.PeerDisconnectedEvent += PeerDisconnectedEvent;
             _listener.NetworkReceiveEvent += NetworkReceiveEvent;
+
+            Log.Information("Server listening at port {@Port}", _server.LocalPort);
         }
 
         public void Dispose()
@@ -44,28 +47,41 @@ namespace PrettySus.Server
 
         private void OnConnectionRequestEvent(ConnectionRequest request)
         {
+            Log.Information("Incoming connection from {@EndPoint}", request.RemoteEndPoint.Address.ToString());
+
             if (_server.ConnectedPeersCount < MaxConnections)
-                request.AcceptIfKey("TEST");
+            {
+                var playerName = request.Data.GetString(Constants.MaxNameLength);
+                var peer = request.Accept();
+
+                _players.Add(peer, new PlayerState
+                {
+                    ConnectionState = PlayerConnectionState.Connecting,
+                    PlayerId = peer.Id,
+                    Name = playerName,
+                    ColorR = (byte)_rng.Next(255),
+                    ColorG = (byte)_rng.Next(255),
+                    ColorB = (byte)_rng.Next(255)
+                });
+            }
             else
+            {
                 request.Reject();
+            }
         }
 
         private void OnPeerConnectedEvent(NetPeer peer)
         {
-            Console.WriteLine($"{peer.EndPoint} connected");
+            var player = _players[peer];
 
-            _players.Add(peer, new PlayerState
-            {
-                PlayerId = peer.Id,
-                ColorR = (byte)_rng.Next(255),
-                ColorG = (byte)_rng.Next(255),
-                ColorB = (byte)_rng.Next(255)
-            });
+            Log.Information("{Player} connected", player.Name);
+            player.ConnectionState = PlayerConnectionState.Connected;
         }
 
         private void PeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectInfo)
         {
-            Console.WriteLine($"{peer.EndPoint} disconnected");
+            var player = _players[peer];
+            Log.Information("{Player} disconnected", player.Name);
 
             _players.Remove(peer);
         }
@@ -121,7 +137,7 @@ namespace PrettySus.Server
 
                     foreach (var input in _playerInputs)
                     {
-                        if (_players.TryGetValue(input.Key, out var playerState))
+                        if (_players.TryGetValue(input.Key, out var playerState) && playerState.ConnectionState == PlayerConnectionState.Connected)
                         {
                             // Very good movement logic
                             var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
@@ -155,6 +171,8 @@ namespace PrettySus.Server
                 _writer.Put(player.Key.Id);
 
                 var state = player.Value;
+                _writer.Put(state.Name, Constants.MaxNameLength);
+                _writer.Put((byte)state.ConnectionState);
                 _writer.Put(state.X);
                 _writer.Put(state.Y);
                 _writer.Put(state.ColorR);

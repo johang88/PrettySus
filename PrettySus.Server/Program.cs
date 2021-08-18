@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 
 namespace PrettySus.Server
 {
@@ -6,6 +7,11 @@ namespace PrettySus.Server
     {
         static void Main(string[] args)
         {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console()
+                .CreateLogger();
+
             using var app = new ServerApp();
             app.Run();
         }
