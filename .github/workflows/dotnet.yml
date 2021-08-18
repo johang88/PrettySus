@@ -28,16 +28,12 @@ jobs:
       run: dotnet publish -c Release -r linux-x64
 
     - name: Upload Server Build Artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: server-linux-x64
-        path: /home/runner/work/PrettySus/PrettySus/PrettySus.Server/bin/Release/net5.0/linux-x64/publish/
+      run: |
+        cd /home/runner/work/PrettySus/PrettySus/PrettySus.Server/bin/Release/net5.0/linux-x64/publish/ && zip -r server-linux-x64.zip *
 
     - name: Upload Client Build Artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: client-win-x64
-        path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/
+      run: |
+        cd /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/ && zip -r client-win-x64.zip *
         
     - name: Create Release
       id: create_release
@@ -57,7 +53,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./server-linux-x64.zip
+        asset_path: /home/runner/work/PrettySus/PrettySus/PrettySus.Server/bin/Release/net5.0/linux-x64/publish/server-linux-x64.zip
         asset_name: server-linux-x64.zip
         asset_content_type: application/zip
         
@@ -68,6 +64,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./client-win-x64.zip
+        asset_path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/client-win-x64.zip
         asset_name: client-win-x64.zip
         asset_content_type: application/zip
