@@ -1,4 +1,4 @@
-name: .NET
+name: New Release
 
 on: workflow_dispatch
 
