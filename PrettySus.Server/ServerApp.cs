@@ -61,7 +61,9 @@ namespace PrettySus.Server
                     Name = playerName,
                     ColorR = (byte)_rng.Next(255),
                     ColorG = (byte)_rng.Next(255),
-                    ColorB = (byte)_rng.Next(255)
+                    ColorB = (byte)_rng.Next(255),
+                    X = Map.TileSize * 2,
+                    Y = Map.TileSize * 2
                 });
             }
             else
@@ -143,8 +145,22 @@ namespace PrettySus.Server
                             var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
                             var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
 
-                            playerState.X += x * 500 * dt;
-                            playerState.Y += y * 500 * dt;
+                            var speed = 500;
+
+                            var newPositionX = playerState.X + x * speed * dt;
+                            if (Map.PlayerCollides(newPositionX, playerState.Y))
+                            {
+                                newPositionX = playerState.X;
+                            }
+
+                            var newPositionY = playerState.Y + y * speed * dt;
+                            if (Map.PlayerCollides(playerState.X, newPositionY))
+                            {
+                                newPositionY = playerState.Y;
+                            }
+
+                            playerState.X = newPositionX;
+                            playerState.Y = newPositionY;
                         }
                     }
 
@@ -157,6 +173,7 @@ namespace PrettySus.Server
                 Thread.Sleep(0);
             }
         }
+
 
         private void SendGameState(NetPeer peer, PlayerState value)
         {

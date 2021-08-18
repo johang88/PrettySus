@@ -95,10 +95,10 @@ namespace PrettySus.Client
                             _players[i] = new PlayerState();
 
                         _players[i].PlayerId = reader.GetInt();
-                        
+
                         _players[i].Name = reader.GetString();
                         _players[i].ConnectionState = (PlayerConnectionState)reader.GetByte();
-                        
+
                         _players[i].PrevX = _players[i].X;
                         _players[i].PrevY = _players[i].Y;
                         _players[i].X = reader.GetFloat();
@@ -202,6 +202,45 @@ namespace PrettySus.Client
             var timeSinceLastGameState = _timer.ElapsedMilliseconds - _lastGameState;
             var alpha = timeSinceLastGameState / (float)Constants.TickLengthInMs;
 
+            // Map
+            var camera = new Camera2D
+            {
+                offset = new Vector2(Raylib.GetScreenWidth() / 2.0f, Raylib.GetScreenHeight() / 2.0f),
+                zoom = 1.0f
+            };
+
+            // Set camera target to player position
+            // not very efficent to calculate twice :D
+            for (var i = 0; i < _playerCount; i++)
+            {
+                var player = _players[i];
+                if (player.PlayerId == _playerId)
+                {
+                    var diffX = (player.X - player.PrevX);
+                    var diffY = (player.Y - player.PrevY);
+
+                    var x = player.PrevX + diffX * alpha;
+                    var y = player.PrevY + diffY * alpha;
+
+                    camera.target = new Vector2(x, y);
+                }
+            }
+
+            Raylib.BeginMode2D(camera);
+
+            for (var y = 0; y < Map.Height; y++)
+            {
+                for (var x = 0; x < Map.Width; x++)
+                {
+                    var index = y * Map.Width + x;
+                    var tile = Map.Data[index];
+
+                    var color = tile == 0 ? Color.LIGHTGRAY : Color.DARKGRAY;
+                    Raylib.DrawRectangle(x * Map.TileSize, y * Map.TileSize, Map.TileSize, Map.TileSize, color);
+                }
+            }
+
+            // Players
             for (var i = 0; i < _playerCount; i++)
             {
                 var player = _players[i];
@@ -245,10 +284,12 @@ namespace PrettySus.Client
                 var fontSize = 30;
                 var width = Raylib.MeasureText(player.Name, fontSize);
                 Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)(y - fontSize), fontSize, Color.WHITE);
-                
+
                 var color = new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255);
                 Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2((int)x, (int)y), color);
             }
+
+            Raylib.EndMode2D();
         }
 
         public void Run()

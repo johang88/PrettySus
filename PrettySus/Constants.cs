@@ -12,5 +12,8 @@ namespace PrettySus
         public const int TickLengthInMs = 1000 / TickRate;
 
         public const int MaxNameLength = 30;
+
+        public const int PlayerWidth = 66;
+        public const int PlayerHeight = 92;
     }
 }
