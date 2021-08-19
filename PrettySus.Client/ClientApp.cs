@@ -347,8 +347,6 @@ namespace PrettySus.Client
                 _imgui.End();
 
                 Raylib.EndDrawing();
-
-                Thread.Sleep(1);
             }
         }
 
