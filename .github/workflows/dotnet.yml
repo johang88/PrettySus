@@ -24,16 +24,23 @@ jobs:
     - name: Publish win-x64
       run: dotnet publish -c Release -r win7-x64
       
+    - name: Publish osx-x64
+      run: dotnet publish -c Release -r osx-x64
+      
     - name: Publish linux-x64
       run: dotnet publish -c Release -r linux-x64
 
-    - name: Upload Server Build Artifact
+    - name: Create server archive
       run: |
         cd /home/runner/work/PrettySus/PrettySus/PrettySus.Server/bin/Release/net5.0/linux-x64/publish/ && zip -r server-linux-x64.zip *
 
-    - name: Upload Client Build Artifact
+    - name: Create win client archive
       run: |
         cd /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/ && zip -r client-win-x64.zip *
+        
+    - name: Create mac client archive
+      run: |
+        cd /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/osx-x64/publish/ && zip -r client-osx-x64.zip *
         
     - name: Get current date
       id: date
@@ -61,8 +68,8 @@ jobs:
         asset_name: server-linux-x64.zip
         asset_content_type: application/zip
         
-    - name: Upload Client Asset
-      id: upload-release-client-asset 
+    - name: Upload Client win7-x64 Asset
+      id: upload-release-client-win-asset 
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,4 +77,15 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/win7-x64/publish/client-win-x64.zip
         asset_name: client-win-x64.zip
+        asset_content_type: application/zip
+        
+    - name: Upload Client osx-x64 Asset
+      id: upload-release-client-osx-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: /home/runner/work/PrettySus/PrettySus/PrettySus.Client/bin/Release/net5.0/osx-x64/publish/client-osx-x64.zip
+        asset_name: client-osx-x64.zip
         asset_content_type: application/zip
