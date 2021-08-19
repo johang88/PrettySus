@@ -44,6 +44,9 @@ namespace PrettySus.Client
         private int _serverPort = 9050;
         private string _name = "";
 
+        private long _packetCount = 0;
+        private long _connectedAt = 0;
+
         public ClientApp()
         {
             _listener = new EventBasedNetListener();
@@ -86,6 +89,8 @@ namespace PrettySus.Client
             switch (packetType)
             {
                 case PacketType.GameState:
+                    _packetCount++;
+
                     _playerId = reader.GetInt();
                     _playerCount = reader.GetInt();
 
@@ -146,7 +151,7 @@ namespace PrettySus.Client
 
             if (_client.ConnectedPeersCount > 0)
             {
-                _state = ClientState.Connected;
+                SetStateConnected();
             }
         }
 
@@ -164,7 +169,7 @@ namespace PrettySus.Client
 
             if (_client.ConnectedPeersCount > 0)
             {
-                _state = ClientState.Connected;
+                SetStateConnected();
             }
         }
 
@@ -292,6 +297,13 @@ namespace PrettySus.Client
             Raylib.EndMode2D();
         }
 
+        private void SetStateConnected()
+        {
+            _state = ClientState.Connected;
+            _connectedAt = _timer.ElapsedMilliseconds;
+            _packetCount = 0;
+        }
+
         public void Run()
         {
             _timer.Start();
@@ -318,10 +330,27 @@ namespace PrettySus.Client
                         break;
                 }
 
+                ImGui.SetNextWindowSize(new Vector2(400, 200), ImGuiCond.Always);
+                ImGui.SetNextWindowPos(new Vector2(Raylib.GetScreenWidth() - 420, 20), ImGuiCond.Always);
+                ImGui.Begin("Statistics", ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove);
+
+                ImGui.Text($"FPS: {Raylib.GetFPS()}");
+                if (_client.ConnectedPeersCount > 0)
+                {
+                    ImGui.Text($"Ping: {_client.FirstPeer.Ping}");
+                    ImGui.Text($"RX Packets: {_packetCount}");
+
+                    var connectedTime = (_timer.ElapsedMilliseconds - _connectedAt) / 1000.0;
+                    ImGui.Text($"RX P/S: {_packetCount/connectedTime:0.00}");
+                }
+
                 _imgui.End();
 
                 Raylib.EndDrawing();
+
+                Thread.Sleep(1);
             }
         }
+
     }
 }

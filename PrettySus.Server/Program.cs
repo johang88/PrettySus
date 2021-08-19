@@ -12,7 +12,7 @@ namespace PrettySus.Server
                 .WriteTo.Console()
                 .CreateLogger();
 
-            using var app = new ServerApp();
+            using var app = new ServerApp(args);
             app.Run();
         }
     }

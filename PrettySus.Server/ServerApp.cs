@@ -25,8 +25,17 @@ namespace PrettySus.Server
         private Random _rng = new();
         private NetDataWriter _writer = new();
 
-        public ServerApp()
+        private int _sleepTime = 0;
+
+        public ServerApp(string[] args)
         {
+            var sleepTime = args.FirstOrDefault(x => x.StartsWith("--sleep-time="));
+            if (sleepTime != null)
+            {
+                int.TryParse(sleepTime.Replace("--sleep-time=", ""), out _sleepTime);
+                Log.Information("--sleep-time {SleepTime}", _sleepTime);
+            }
+
             _listener = new EventBasedNetListener();
             _server = new NetManager(_listener);
 
@@ -123,11 +132,6 @@ namespace PrettySus.Server
             var running = true;
             while (running)
             {
-                if (Console.KeyAvailable && Console.ReadKey().Key == ConsoleKey.C)
-                {
-                    running = false;
-                }
-
                 _server.PollEvents();
 
                 var timeSinceLastTick = watch.ElapsedMilliseconds - lastTick;
@@ -170,10 +174,12 @@ namespace PrettySus.Server
                     }
                 }
 
-                Thread.Sleep(0);
+                if (_sleepTime >= 0)
+                {
+                    Thread.Sleep(_sleepTime);
+                }
             }
         }
-
 
         private void SendGameState(NetPeer peer, PlayerState value)
         {
