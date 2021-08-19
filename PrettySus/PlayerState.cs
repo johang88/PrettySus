@@ -17,6 +17,7 @@ namespace PrettySus
         public string Name;
         public PlayerConnectionState ConnectionState;
         public int PlayerId;
+        public bool IsAlive;
         public float X;
         public float Y;
         public float PrevX;

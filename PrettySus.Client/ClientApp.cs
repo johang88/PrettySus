@@ -36,6 +36,7 @@ namespace PrettySus.Client
         private long _lastInput = 0;
 
         private Texture2D _playerIdle;
+        private Texture2D _playerDead;
         private Texture2D[] _playerWalk;
         private ImGuiImplementation _imgui;
 
@@ -59,6 +60,7 @@ namespace PrettySus.Client
             Raylib.InitWindow(1280, 720, "PrettySus");
 
             _playerIdle = Raylib.LoadTexture("Assets/Player/p1_stand.png");
+            _playerDead = Raylib.LoadTexture("Assets/Player/p1_hurt.png");
             _playerWalk = new Texture2D[11];
             for (var i = 0; i < _playerWalk.Length; i++)
             {
@@ -71,6 +73,7 @@ namespace PrettySus.Client
         public void Dispose()
         {
             Raylib.UnloadTexture(_playerIdle);
+            Raylib.UnloadTexture(_playerDead);
             for (var i = 0; i < _playerWalk.Length; i++)
             {
                 Raylib.UnloadTexture(_playerWalk[i]);
@@ -103,6 +106,7 @@ namespace PrettySus.Client
 
                         _players[i].Name = reader.GetString();
                         _players[i].ConnectionState = (PlayerConnectionState)reader.GetByte();
+                        _players[i].IsAlive = reader.GetBool();
 
                         _players[i].PrevX = _players[i].X;
                         _players[i].PrevY = _players[i].Y;
@@ -186,6 +190,9 @@ namespace PrettySus.Client
             if (Raylib.IsKeyDown(KeyboardKey.KEY_DOWN) || Raylib.IsKeyDown(KeyboardKey.KEY_S))
                 _input.Y = 1.0f;
 
+            if (Raylib.IsKeyDown(KeyboardKey.KEY_SPACE))
+                _input.Attack = true;
+
             // Send input
             var timeSinceLastInput = _timer.ElapsedMilliseconds - _lastInput;
             if (timeSinceLastInput >= Constants.TickLengthInMs)
@@ -196,11 +203,13 @@ namespace PrettySus.Client
                 _writer.Put((byte)PacketType.Input);
                 _writer.Put(_input.X);
                 _writer.Put(_input.Y);
+                _writer.Put(_input.Attack);
 
                 _client.FirstPeer.Send(_writer, DeliveryMethod.Sequenced);
 
                 _input.X = 0;
                 _input.Y = 0;
+                _input.Attack = false;
             }
 
             // Render
@@ -262,7 +271,10 @@ namespace PrettySus.Client
                 Texture2D texture = _playerIdle;
                 if (diffX != 0.0f || diffY != 0.0f)
                 {
-                    animationState.Direction = diffX >= 0.0f ? 1.0f : -1.0f;
+                    if (diffX != 0.0f)
+                    {
+                        animationState.Direction = diffX >= 0.0f ? 1.0f : -1.0f;
+                    }
 
                     if (!animationState.IsWalking)
                     {
@@ -281,6 +293,11 @@ namespace PrettySus.Client
                 else
                 {
                     animationState.IsWalking = false;
+                }
+
+                if (!player.IsAlive)
+                {
+                    texture = _playerDead;
                 }
 
                 var x = player.PrevX + diffX * alpha;

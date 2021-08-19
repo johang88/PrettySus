@@ -19,7 +19,7 @@ namespace PrettySus.Server
         private const int Port = 9050;
         private const int MaxConnections = 10;
 
-        private Dictionary<NetPeer, PlayerState> _players = new();
+        private Dictionary<NetPeer, PlayerServerState> _players = new();
         private Dictionary<NetPeer, PlayerInput> _playerInputs = new();
 
         private Random _rng = new();
@@ -63,10 +63,11 @@ namespace PrettySus.Server
                 var playerName = request.Data.GetString(Constants.MaxNameLength);
                 var peer = request.Accept();
 
-                _players.Add(peer, new PlayerState
+                _players.Add(peer, new PlayerServerState
                 {
                     ConnectionState = PlayerConnectionState.Connecting,
                     PlayerId = peer.Id,
+                    IsAlive = true,
                     Name = playerName,
                     ColorR = (byte)_rng.Next(255),
                     ColorG = (byte)_rng.Next(255),
@@ -113,6 +114,7 @@ namespace PrettySus.Server
                     // Only keep latest input
                     input.X = reader.GetFloat();
                     input.Y = reader.GetFloat();
+                    input.Attack = reader.GetBool();
                     break;
                 default:
                     Console.WriteLine($"Invalid packet type {packetType} from {peer}");
@@ -145,26 +147,59 @@ namespace PrettySus.Server
                     {
                         if (_players.TryGetValue(input.Key, out var playerState) && playerState.ConnectionState == PlayerConnectionState.Connected)
                         {
-                            // Very good movement logic
-                            var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
-                            var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
-
-                            var speed = 500;
-
-                            var newPositionX = playerState.X + x * speed * dt;
-                            if (Map.PlayerCollides(newPositionX, playerState.Y))
+                            if (playerState.IsAlive)
                             {
-                                newPositionX = playerState.X;
-                            }
+                                // Very good movement logic
+                                var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
+                                var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
 
-                            var newPositionY = playerState.Y + y * speed * dt;
-                            if (Map.PlayerCollides(playerState.X, newPositionY))
+                                var speed = 500;
+
+                                var newPositionX = playerState.X + x * speed * dt;
+                                if (Map.PlayerCollides(newPositionX, playerState.Y))
+                                {
+                                    newPositionX = playerState.X;
+                                }
+
+                                var newPositionY = playerState.Y + y * speed * dt;
+                                if (Map.PlayerCollides(playerState.X, newPositionY))
+                                {
+                                    newPositionY = playerState.Y;
+                                }
+
+                                playerState.X = newPositionX;
+                                playerState.Y = newPositionY;
+
+                                if (input.Value.Attack && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
+                                {
+                                    // TODO: Trace through tilemap so you cant kill through stuff
+                                    playerState.AttackedAt = watch.ElapsedMilliseconds;
+
+                                    foreach (var otherPlayer in _players.Values)
+                                    {
+                                        if (otherPlayer.PlayerId == playerState.PlayerId)
+                                            continue;
+
+                                        var dx = playerState.X - otherPlayer.X;
+                                        var dy = playerState.Y - otherPlayer.Y;
+
+                                        var distance = MathF.Sqrt(dx * dx + dy * dy);
+                                        if (distance <= Constants.KillDistance)
+                                        {
+                                            otherPlayer.IsAlive = false;
+                                            otherPlayer.DieadAt = watch.ElapsedMilliseconds;
+                                        }
+                                    }
+                                }
+                            }
+                            else
                             {
-                                newPositionY = playerState.Y;
+                                var timeDead = watch.ElapsedMilliseconds - playerState.DieadAt;
+                                if (timeDead >= Constants.RespawnTime)
+                                {
+                                    playerState.IsAlive = true;
+                                }
                             }
-
-                            playerState.X = newPositionX;
-                            playerState.Y = newPositionY;
                         }
                     }
 
@@ -196,6 +231,7 @@ namespace PrettySus.Server
                 var state = player.Value;
                 _writer.Put(state.Name, Constants.MaxNameLength);
                 _writer.Put((byte)state.ConnectionState);
+                _writer.Put(state.IsAlive);
                 _writer.Put(state.X);
                 _writer.Put(state.Y);
                 _writer.Put(state.ColorR);

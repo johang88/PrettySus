@@ -10,5 +10,6 @@ namespace PrettySus
     {
         public float X;
         public float Y;
+        public bool Attack;
     }
 }

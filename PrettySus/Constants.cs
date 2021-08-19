@@ -15,5 +15,9 @@ namespace PrettySus
 
         public const int PlayerWidth = 66;
         public const int PlayerHeight = 92;
+
+        public const float KillDistance = PlayerWidth * 3;
+        public const int RespawnTime = 5000;
+        public const int AttackCooldown = 2000;
     }
 }
