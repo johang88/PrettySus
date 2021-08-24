@@ -28,7 +28,7 @@ jobs:
       run: dotnet publish PrettySus.Client/PrettySus.Client.csproj -c Release -r osx-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true -p:PublishReadyToRun=false
       
     - name: Publish linux-x64
-      run: dotnet publish PrettySus.Server/Server.Client.csproj -c Release -r linux-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true -p:PublishReadyToRun=true
+      run: dotnet publish PrettySus.Server/Server.Server.csproj -c Release -r linux-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true -p:PublishReadyToRun=true
 
     - name: Create server archive
       run: |
