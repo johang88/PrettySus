@@ -34,6 +34,7 @@ namespace PrettySus.Client
         private PlayerInput _input = new();
         private long _lastGameState = 0;
         private long _lastInput = 0;
+        private GameState _gameState = new();
 
         private Texture2D _playerIdle;
         private Texture2D _playerDead;
@@ -95,6 +96,10 @@ namespace PrettySus.Client
                     _packetCount++;
 
                     _playerId = reader.GetInt();
+
+                    _gameState.State = (States)reader.GetByte();
+                    _gameState.CountDown = reader.GetFloat();
+
                     _playerCount = reader.GetInt();
 
                     for (var i = 0; i < _playerCount; i++)
@@ -106,6 +111,7 @@ namespace PrettySus.Client
 
                         _players[i].Name = reader.GetString();
                         _players[i].ConnectionState = (PlayerConnectionState)reader.GetByte();
+                        _players[i].IsReady = reader.GetBool();
                         _players[i].IsAlive = reader.GetBool();
 
                         _players[i].PrevX = _players[i].X;
@@ -113,9 +119,7 @@ namespace PrettySus.Client
                         _players[i].X = reader.GetFloat();
                         _players[i].Y = reader.GetFloat();
 
-                        _players[i].ColorR = reader.GetByte();
-                        _players[i].ColorG = reader.GetByte();
-                        _players[i].ColorB = reader.GetByte();
+                        _players[i].ColorIndex = reader.GetByte();
                     }
 
                     _lastGameState = _timer.ElapsedMilliseconds;
@@ -203,7 +207,9 @@ namespace PrettySus.Client
                 _writer.Put((byte)PacketType.Input);
                 _writer.Put(_input.X);
                 _writer.Put(_input.Y);
+                _writer.Put(_input.IsReady);
                 _writer.Put(_input.Attack);
+                _writer.Put(_input.ColorIndex);
 
                 _client.FirstPeer.Send(_writer, DeliveryMethod.Sequenced);
 
@@ -307,11 +313,51 @@ namespace PrettySus.Client
                 var width = Raylib.MeasureText(player.Name, fontSize);
                 Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)(y - fontSize), fontSize, Color.WHITE);
 
-                var color = new Color(player.ColorR, player.ColorG, player.ColorB, (byte)255);
+                var color = new Color(PlayerColors.Colors[player.ColorIndex].R, PlayerColors.Colors[player.ColorIndex].G, PlayerColors.Colors[player.ColorIndex].B, (byte)255);
                 Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2((int)x, (int)y), color);
             }
 
             Raylib.EndMode2D();
+
+            if (_gameState.State == States.Lobby || _gameState.State == States.Starting)
+            {
+                var timeLeft = _gameState.CountDown > 0.0f ? _gameState.CountDown : 0.0f;
+
+                var fontSize = 30;
+                var text = _gameState.State == States.Lobby ? "WAITING FOR PLAYERS TO BE READY" : $"STARTING IN {timeLeft:0.00}";
+
+                var width = Raylib.MeasureText(text, fontSize);
+
+                Raylib.DrawText(text, (int)(Raylib.GetScreenWidth() / 2.0f - width / 2.0f), Raylib.GetScreenHeight() - 100, fontSize, Color.WHITE);
+            }
+
+            // UI
+            if (_gameState.State == States.Lobby)
+            {
+                ImGui.SetNextWindowSize(new Vector2(400, 200), ImGuiCond.Always);
+                ImGui.SetNextWindowPos(new Vector2(20, 20), ImGuiCond.Always);
+                ImGui.Begin("Settings", ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove);
+
+                ImGui.Text("Color");
+
+                for (byte i = 0; i < (byte)PlayerColors.Colors.Length; i++)
+                {
+                    if (i > 0)
+                        ImGui.SameLine();
+
+                    var isColorUsed = PlayerColors.IsColorUsed(_players, _playerCount, i);
+                    var color = PlayerColors.Colors[i];
+                    var colorF = new Vector4(color.R / 255.0f, color.G / 255.0f, color.B / 255.0f, 1.0f);
+                    if (ImGui.ColorButton($"Color_{i}", colorF) && !isColorUsed)
+                    {
+                        _input.ColorIndex = i;
+                    }
+                }
+
+                ImGui.Checkbox("Ready", ref _input.IsReady);
+
+                _imgui.End();
+            }
         }
 
         private void SetStateConnected()
@@ -358,7 +404,7 @@ namespace PrettySus.Client
                     ImGui.Text($"RX Packets: {_packetCount}");
 
                     var connectedTime = (_timer.ElapsedMilliseconds - _connectedAt) / 1000.0;
-                    ImGui.Text($"RX P/S: {_packetCount/connectedTime:0.00}");
+                    ImGui.Text($"RX P/S: {_packetCount / connectedTime:0.00}");
                 }
 
                 _imgui.End();

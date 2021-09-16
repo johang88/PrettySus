@@ -17,7 +17,7 @@ namespace PrettySus.Server
         private readonly NetManager _server;
 
         private const int Port = 9050;
-        private const int MaxConnections = 10;
+        private const int MaxConnections = 8;
 
         private Dictionary<NetPeer, PlayerServerState> _players = new();
         private Dictionary<NetPeer, PlayerInput> _playerInputs = new();
@@ -26,6 +26,8 @@ namespace PrettySus.Server
         private NetDataWriter _writer = new();
 
         private int _sleepTime = 0;
+
+        private GameState _gameState = new();
 
         public ServerApp(string[] args)
         {
@@ -58,7 +60,17 @@ namespace PrettySus.Server
         {
             Log.Information("Incoming connection from {@EndPoint}", request.RemoteEndPoint.Address.ToString());
 
-            if (_server.ConnectedPeersCount < MaxConnections)
+            if (_server.ConnectedPeersCount >= MaxConnections)
+            {
+                Log.Information("Connection from {@EndPoint} rejected, max players reached", request.RemoteEndPoint.Address.ToString());
+                request.Reject();
+            }
+            else if (_gameState.State != States.Lobby)
+            {
+                Log.Information("Connection from {@EndPoint} rejected, game not in lobby", request.RemoteEndPoint.Address.ToString());
+                request.Reject();
+            }
+            else
             {
                 var playerName = request.Data.GetString(Constants.MaxNameLength);
                 var peer = request.Accept();
@@ -69,16 +81,10 @@ namespace PrettySus.Server
                     PlayerId = peer.Id,
                     IsAlive = true,
                     Name = playerName,
-                    ColorR = (byte)_rng.Next(255),
-                    ColorG = (byte)_rng.Next(255),
-                    ColorB = (byte)_rng.Next(255),
+                    ColorIndex = PlayerColors.GetNextColorIndex(_players.Values),
                     X = Map.TileSize * 2,
                     Y = Map.TileSize * 2
                 });
-            }
-            else
-            {
-                request.Reject();
             }
         }
 
@@ -114,7 +120,9 @@ namespace PrettySus.Server
                     // Only keep latest input
                     input.X = reader.GetFloat();
                     input.Y = reader.GetFloat();
+                    input.IsReady = reader.GetBool();
                     input.Attack = reader.GetBool();
+                    input.ColorIndex = reader.GetByte();
                     break;
                 default:
                     Console.WriteLine($"Invalid packet type {packetType} from {peer}");
@@ -147,6 +155,16 @@ namespace PrettySus.Server
                     {
                         if (_players.TryGetValue(input.Key, out var playerState) && playerState.ConnectionState == PlayerConnectionState.Connected)
                         {
+                            if (_gameState.State == States.Lobby && input.Value.ColorIndex != playerState.ColorIndex && !PlayerColors.IsColorUsed(_players.Values, input.Value.ColorIndex))
+                            {
+                                playerState.ColorIndex = input.Value.ColorIndex;
+                            }
+
+                            if (_gameState.State == States.Lobby)
+                            {
+                                playerState.IsReady = input.Value.IsReady;
+                            }
+
                             if (playerState.IsAlive)
                             {
                                 // Very good movement logic
@@ -203,6 +221,24 @@ namespace PrettySus.Server
                         }
                     }
 
+                    switch (_gameState.State)
+                    {
+                        case States.Lobby when _players.Count > 0 && _players.Values.All(x => x.IsReady):
+                            _gameState.State = States.Starting;
+                            _gameState.CountDown = 5;
+                            break;
+                        case States.Starting:
+                            _gameState.CountDown -= dt;
+                            if (_gameState.CountDown <= 0.0f)
+                            {
+                                _gameState.State = States.Started;
+                                // TODO: Reset player positions
+                            }
+                            break;
+                        case States.Started:
+                            break;
+                    }
+
                     foreach (var player in _players)
                     {
                         SendGameState(player.Key, player.Value);
@@ -223,6 +259,9 @@ namespace PrettySus.Server
             _writer.Put((byte)PacketType.GameState);
             _writer.Put(peer.Id);
 
+            _writer.Put((byte)_gameState.State);
+            _writer.Put(_gameState.CountDown);
+
             _writer.Put(_players.Count);
             foreach (var player in _players)
             {
@@ -231,12 +270,11 @@ namespace PrettySus.Server
                 var state = player.Value;
                 _writer.Put(state.Name, Constants.MaxNameLength);
                 _writer.Put((byte)state.ConnectionState);
+                _writer.Put(state.IsReady);
                 _writer.Put(state.IsAlive);
                 _writer.Put(state.X);
                 _writer.Put(state.Y);
-                _writer.Put(state.ColorR);
-                _writer.Put(state.ColorG);
-                _writer.Put(state.ColorB);
+                _writer.Put(state.ColorIndex);
             }
 
             peer.Send(_writer, DeliveryMethod.Sequenced);
