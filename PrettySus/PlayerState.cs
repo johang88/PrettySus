@@ -76,15 +76,13 @@ namespace PrettySus
 
     public class PlayerState
     {
-        public string Name;
-        public PlayerConnectionState ConnectionState;
-        public int PlayerId;
-        public bool IsAlive;
-        public bool IsReady;
-        public float X;
-        public float Y;
-        public float PrevX;
-        public float PrevY;
-        public byte ColorIndex;
+        public string Name { get; set; }
+        public PlayerConnectionState ConnectionState { get; set; }
+        public int PlayerId { get; set; }
+        public bool IsAlive { get; set; }
+        public bool IsReady { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+        public byte ColorIndex { get; set; }
     }
 }

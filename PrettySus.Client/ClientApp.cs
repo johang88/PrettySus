@@ -25,11 +25,11 @@ namespace PrettySus.Client
         private readonly EventBasedNetListener _listener;
         private readonly NetManager _client;
 
-        private int _playerCount = 0;
-        private PlayerState[] _players = new PlayerState[16];
+        private PlayerClientState[] _players = new PlayerClientState[16];
         private Dictionary<int, PlayerAnimationState> _playerAnimations = new();
         private int _playerId = 0;
         private NetDataWriter _writer = new();
+        private NetSerializer _serializer = new();
         private Stopwatch _timer = new();
         private PlayerInput _input = new();
         private long _lastGameState = 0;
@@ -98,29 +98,16 @@ namespace PrettySus.Client
 
                     _playerId = reader.GetInt();
 
-                    _gameState.State = (States)reader.GetByte();
-                    _gameState.CountDown = reader.GetFloat();
-
-                    _playerCount = reader.GetInt();
-
-                    for (var i = 0; i < _playerCount; i++)
+                    _serializer.Deserialize(reader, _gameState);
+                    for (var i = 0; i < _gameState.PlayerCount; i++)
                     {
                         if (_players[i] == null)
-                            _players[i] = new PlayerState();
-
-                        _players[i].PlayerId = reader.GetInt();
-
-                        _players[i].Name = reader.GetString();
-                        _players[i].ConnectionState = (PlayerConnectionState)reader.GetByte();
-                        _players[i].IsReady = reader.GetBool();
-                        _players[i].IsAlive = reader.GetBool();
+                            _players[i] = new PlayerClientState();
 
                         _players[i].PrevX = _players[i].X;
                         _players[i].PrevY = _players[i].Y;
-                        _players[i].X = reader.GetFloat();
-                        _players[i].Y = reader.GetFloat();
 
-                        _players[i].ColorIndex = reader.GetByte();
+                        _serializer.Deserialize(reader, (PlayerState)_players[i]);
                     }
 
                     _lastGameState = _timer.ElapsedMilliseconds;
@@ -204,13 +191,7 @@ namespace PrettySus.Client
             {
                 _lastInput = _timer.ElapsedMilliseconds;
 
-                _writer.Reset();
-                _writer.Put((byte)PacketType.Input);
-                _writer.Put(_input.X);
-                _writer.Put(_input.Y);
-                _writer.Put(_input.Attack);
-
-                _client.FirstPeer.Send(_writer, DeliveryMethod.Sequenced);
+                _client.FirstPeer.SendPacket(_writer, _serializer, DeliveryMethod.Sequenced, PacketType.Input, _input);
 
                 _input.X = 0;
                 _input.Y = 0;
@@ -230,7 +211,7 @@ namespace PrettySus.Client
 
             // Set camera target to player position
             // not very efficent to calculate twice :D
-            for (var i = 0; i < _playerCount; i++)
+            for (var i = 0; i < _gameState.PlayerCount; i++)
             {
                 var player = _players[i];
                 if (player.PlayerId == _playerId)
@@ -260,7 +241,7 @@ namespace PrettySus.Client
             }
 
             // Players
-            for (var i = 0; i < _playerCount; i++)
+            for (var i = 0; i < _gameState.PlayerCount; i++)
             {
                 var player = _players[i];
 
@@ -344,7 +325,7 @@ namespace PrettySus.Client
                     if (i > 0)
                         ImGui.SameLine();
 
-                    var isColorUsed = PlayerColors.IsColorUsed(_players, _playerCount, i);
+                    var isColorUsed = PlayerColors.IsColorUsed(_players, _gameState.PlayerCount, i);
                     var color = PlayerColors.Colors[i];
                     var colorF = new Vector4(color.R / 255.0f, color.G / 255.0f, color.B / 255.0f, 1.0f);
                     if (ImGui.ColorButton($"Color_{i}", colorF) && !isColorUsed)

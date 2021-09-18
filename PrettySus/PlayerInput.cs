@@ -8,8 +8,8 @@ namespace PrettySus
 {
     public class PlayerInput
     {
-        public float X;
-        public float Y;
-        public bool Attack;
+        public float X { get; set; }
+        public float Y { get; set; }
+        public bool Attack { get; set; }
     }
 }

@@ -22,8 +22,8 @@ namespace PrettySus.Server
         private Dictionary<NetPeer, PlayerServerState> _players = new();
         private Dictionary<NetPeer, PlayerInput> _playerInputs = new();
 
-        private Random _rng = new();
         private NetDataWriter _writer = new();
+        private NetSerializer _serializer = new();
 
         private int _sleepTime = 0;
 
@@ -85,6 +85,8 @@ namespace PrettySus.Server
                     X = Map.TileSize * 2,
                     Y = Map.TileSize * 2
                 });
+
+                _gameState.PlayerCount = _players.Count;
             }
         }
 
@@ -102,6 +104,7 @@ namespace PrettySus.Server
             Log.Information("{Player} disconnected", player.Name);
 
             _players.Remove(peer);
+            _gameState.PlayerCount = _players.Count;
         }
 
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
@@ -119,10 +122,7 @@ namespace PrettySus.Server
                         _playerInputs.Add(peer, input);
                     }
 
-                    // Only keep latest input
-                    input.X = reader.GetFloat();
-                    input.Y = reader.GetFloat();
-                    input.Attack = reader.GetBool();
+                    _serializer.Deserialize(reader, input);
                     break;
                 case PacketType.SetColorIndex when _gameState.State == States.Lobby:
                     var colorIndex = reader.GetByte();
@@ -262,22 +262,11 @@ namespace PrettySus.Server
             _writer.Put((byte)PacketType.GameState);
             _writer.Put(peer.Id);
 
-            _writer.Put((byte)_gameState.State);
-            _writer.Put(_gameState.CountDown);
+            _serializer.Serialize(_writer, _gameState);
 
-            _writer.Put(_players.Count);
             foreach (var player in _players)
             {
-                _writer.Put(player.Key.Id);
-
-                var state = player.Value;
-                _writer.Put(state.Name, Constants.MaxNameLength);
-                _writer.Put((byte)state.ConnectionState);
-                _writer.Put(state.IsReady);
-                _writer.Put(state.IsAlive);
-                _writer.Put(state.X);
-                _writer.Put(state.Y);
-                _writer.Put(state.ColorIndex);
+                _serializer.Serialize(_writer, (PlayerState)player.Value);
             }
 
             peer.Send(_writer, DeliveryMethod.Sequenced);

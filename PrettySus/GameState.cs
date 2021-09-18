@@ -15,7 +15,8 @@ namespace PrettySus
 
     public class GameState
     {
-        public States State = States.Lobby;
-        public float CountDown = 0;
+        public States State { get; set; } = States.Lobby;
+        public float CountDown { get; set; } = 0;
+        public int PlayerCount { get; set; } = 0;
     }
 }
