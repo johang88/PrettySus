@@ -206,22 +206,29 @@ namespace PrettySus.Server
                 var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
                 var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
 
-                var speed = 500;
-
-                var newPositionX = playerState.X + x * speed * dt;
-                if (Map.PlayerCollides(newPositionX, playerState.Y))
+                if (x != 0.0f || y != 0.0f)
                 {
-                    newPositionX = playerState.X;
-                }
+                    var length = MathF.Sqrt(x * x + y * y);
+                    x /= length;
+                    y /= length;
 
-                var newPositionY = playerState.Y + y * speed * dt;
-                if (Map.PlayerCollides(playerState.X, newPositionY))
-                {
-                    newPositionY = playerState.Y;
-                }
+                    var speed = 500;
 
-                playerState.X = newPositionX;
-                playerState.Y = newPositionY;
+                    var newPositionX = playerState.X + x * speed * dt;
+                    if (Map.PlayerCollides(newPositionX, playerState.Y))
+                    {
+                        newPositionX = playerState.X;
+                    }
+
+                    var newPositionY = playerState.Y + y * speed * dt;
+                    if (Map.PlayerCollides(playerState.X, newPositionY))
+                    {
+                        newPositionY = playerState.Y;
+                    }
+
+                    playerState.X = newPositionX;
+                    playerState.Y = newPositionY;
+                }
 
                 if (input.Value.Attack && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
                 {
