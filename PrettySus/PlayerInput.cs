@@ -11,7 +11,5 @@ namespace PrettySus
         public float X;
         public float Y;
         public bool Attack;
-        public bool IsReady;
-        public byte ColorIndex;
     }
 }

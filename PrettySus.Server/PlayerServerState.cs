@@ -8,7 +8,7 @@ namespace PrettySus.Server
 {
     public class PlayerServerState : PlayerState
     {
-        public long DieadAt;
+        public long DiedAt;
         public long? AttackedAt;
     }
 }

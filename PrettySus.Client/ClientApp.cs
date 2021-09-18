@@ -48,6 +48,7 @@ namespace PrettySus.Client
 
         private long _packetCount = 0;
         private long _connectedAt = 0;
+        private bool _isReady = false;
 
         public ClientApp()
         {
@@ -207,9 +208,7 @@ namespace PrettySus.Client
                 _writer.Put((byte)PacketType.Input);
                 _writer.Put(_input.X);
                 _writer.Put(_input.Y);
-                _writer.Put(_input.IsReady);
                 _writer.Put(_input.Attack);
-                _writer.Put(_input.ColorIndex);
 
                 _client.FirstPeer.Send(_writer, DeliveryMethod.Sequenced);
 
@@ -350,11 +349,24 @@ namespace PrettySus.Client
                     var colorF = new Vector4(color.R / 255.0f, color.G / 255.0f, color.B / 255.0f, 1.0f);
                     if (ImGui.ColorButton($"Color_{i}", colorF) && !isColorUsed)
                     {
-                        _input.ColorIndex = i;
+                        _writer.Reset();
+                        _writer.Put((byte)PacketType.SetColorIndex);
+                        _writer.Put(i);
+                        _client.FirstPeer.Send(_writer, DeliveryMethod.ReliableOrdered);
                     }
                 }
 
-                ImGui.Checkbox("Ready", ref _input.IsReady);
+                if (!_isReady)
+                {
+                    if (ImGui.Button("Ready?"))
+                    {
+                        _isReady = true;
+
+                        _writer.Reset();
+                        _writer.Put((byte)PacketType.PlayerReady);
+                        _client.FirstPeer.Send(_writer, DeliveryMethod.ReliableOrdered);
+                    }
+                }
 
                 _imgui.End();
             }

@@ -9,6 +9,8 @@ namespace PrettySus
     public enum PacketType : byte
     {
         Input,
-        GameState
+        GameState,
+        SetColorIndex,
+        PlayerReady
     }
 }

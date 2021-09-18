@@ -107,6 +107,8 @@ namespace PrettySus.Server
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
         {
             var packetType = (PacketType)reader.GetByte();
+            if (!_players.TryGetValue(peer, out var player))
+                return;
 
             switch (packetType)
             {
@@ -120,9 +122,15 @@ namespace PrettySus.Server
                     // Only keep latest input
                     input.X = reader.GetFloat();
                     input.Y = reader.GetFloat();
-                    input.IsReady = reader.GetBool();
                     input.Attack = reader.GetBool();
-                    input.ColorIndex = reader.GetByte();
+                    break;
+                case PacketType.SetColorIndex when _gameState.State == States.Lobby:
+                    var colorIndex = reader.GetByte();
+                    if (!PlayerColors.IsColorUsed(_players.Values, colorIndex))
+                        player.ColorIndex = colorIndex;
+                    break;
+                case PacketType.PlayerReady when _gameState.State == States.Lobby:
+                    player.IsReady = true;
                     break;
                 default:
                     Console.WriteLine($"Invalid packet type {packetType} from {peer}");
@@ -153,72 +161,10 @@ namespace PrettySus.Server
 
                     foreach (var input in _playerInputs)
                     {
-                        if (_players.TryGetValue(input.Key, out var playerState) && playerState.ConnectionState == PlayerConnectionState.Connected)
-                        {
-                            if (_gameState.State == States.Lobby && input.Value.ColorIndex != playerState.ColorIndex && !PlayerColors.IsColorUsed(_players.Values, input.Value.ColorIndex))
-                            {
-                                playerState.ColorIndex = input.Value.ColorIndex;
-                            }
+                        if (!_players.TryGetValue(input.Key, out var playerState) && playerState.ConnectionState == PlayerConnectionState.Connected)
+                            continue;
 
-                            if (_gameState.State == States.Lobby)
-                            {
-                                playerState.IsReady = input.Value.IsReady;
-                            }
-
-                            if (playerState.IsAlive)
-                            {
-                                // Very good movement logic
-                                var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
-                                var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
-
-                                var speed = 500;
-
-                                var newPositionX = playerState.X + x * speed * dt;
-                                if (Map.PlayerCollides(newPositionX, playerState.Y))
-                                {
-                                    newPositionX = playerState.X;
-                                }
-
-                                var newPositionY = playerState.Y + y * speed * dt;
-                                if (Map.PlayerCollides(playerState.X, newPositionY))
-                                {
-                                    newPositionY = playerState.Y;
-                                }
-
-                                playerState.X = newPositionX;
-                                playerState.Y = newPositionY;
-
-                                if (input.Value.Attack && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
-                                {
-                                    // TODO: Trace through tilemap so you cant kill through stuff
-                                    playerState.AttackedAt = watch.ElapsedMilliseconds;
-
-                                    foreach (var otherPlayer in _players.Values)
-                                    {
-                                        if (otherPlayer.PlayerId == playerState.PlayerId)
-                                            continue;
-
-                                        var dx = playerState.X - otherPlayer.X;
-                                        var dy = playerState.Y - otherPlayer.Y;
-
-                                        var distance = MathF.Sqrt(dx * dx + dy * dy);
-                                        if (distance <= Constants.KillDistance)
-                                        {
-                                            otherPlayer.IsAlive = false;
-                                            otherPlayer.DieadAt = watch.ElapsedMilliseconds;
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                var timeDead = watch.ElapsedMilliseconds - playerState.DieadAt;
-                                if (timeDead >= Constants.RespawnTime)
-                                {
-                                    playerState.IsAlive = true;
-                                }
-                            }
-                        }
+                        UpdatePlayer(watch, dt, input, playerState);
                     }
 
                     switch (_gameState.State)
@@ -248,6 +194,63 @@ namespace PrettySus.Server
                 if (_sleepTime >= 0)
                 {
                     Thread.Sleep(_sleepTime);
+                }
+            }
+        }
+
+        private void UpdatePlayer(Stopwatch watch, float dt, KeyValuePair<NetPeer, PlayerInput> input, PlayerServerState playerState)
+        {
+            if (playerState.IsAlive)
+            {
+                // Very good movement logic
+                var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
+                var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
+
+                var speed = 500;
+
+                var newPositionX = playerState.X + x * speed * dt;
+                if (Map.PlayerCollides(newPositionX, playerState.Y))
+                {
+                    newPositionX = playerState.X;
+                }
+
+                var newPositionY = playerState.Y + y * speed * dt;
+                if (Map.PlayerCollides(playerState.X, newPositionY))
+                {
+                    newPositionY = playerState.Y;
+                }
+
+                playerState.X = newPositionX;
+                playerState.Y = newPositionY;
+
+                if (input.Value.Attack && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
+                {
+                    // TODO: Trace through tilemap so you cant kill through stuff
+                    playerState.AttackedAt = watch.ElapsedMilliseconds;
+
+                    foreach (var otherPlayer in _players.Values)
+                    {
+                        if (otherPlayer.PlayerId == playerState.PlayerId)
+                            continue;
+
+                        var dx = playerState.X - otherPlayer.X;
+                        var dy = playerState.Y - otherPlayer.Y;
+
+                        var distance = MathF.Sqrt(dx * dx + dy * dy);
+                        if (distance <= Constants.KillDistance)
+                        {
+                            otherPlayer.IsAlive = false;
+                            otherPlayer.DiedAt = watch.ElapsedMilliseconds;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                var timeDead = watch.ElapsedMilliseconds - playerState.DiedAt;
+                if (timeDead >= Constants.RespawnTime)
+                {
+                    playerState.IsAlive = true;
                 }
             }
         }
