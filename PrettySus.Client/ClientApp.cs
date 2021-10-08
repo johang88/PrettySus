@@ -326,7 +326,7 @@ namespace PrettySus.Client
 
             sprites.Sort((a, b) => a.Position.Y.CompareTo(b.Position.Y));
 
-            for (var i = 0; i < maxSprites; i++)
+            for (var i = 0; i < sprites.Length; i++)
             {
                 ref var sprite = ref sprites[i];
                 if (sprite.Texture.id != 0)
