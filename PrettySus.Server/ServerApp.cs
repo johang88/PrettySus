@@ -200,64 +200,55 @@ namespace PrettySus.Server
 
         private void UpdatePlayer(Stopwatch watch, float dt, KeyValuePair<NetPeer, PlayerInput> input, PlayerServerState playerState)
         {
-            if (playerState.IsAlive)
+            // Very good movement logic
+            var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
+            var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
+
+            if (x != 0.0f || y != 0.0f)
             {
-                // Very good movement logic
-                var x = Math.Min(1.0f, Math.Max(-1.0f, input.Value.X));
-                var y = Math.Min(1.0f, Math.Max(-1.0f, input.Value.Y));
+                var length = MathF.Sqrt(x * x + y * y);
+                x /= length;
+                y /= length;
 
-                if (x != 0.0f || y != 0.0f)
+                var speed = 500;
+
+                var newPositionX = playerState.X + x * speed * dt;
+                if (Map.PlayerCollides(newPositionX, playerState.Y) && playerState.IsAlive)
                 {
-                    var length = MathF.Sqrt(x * x + y * y);
-                    x /= length;
-                    y /= length;
-
-                    var speed = 500;
-
-                    var newPositionX = playerState.X + x * speed * dt;
-                    if (Map.PlayerCollides(newPositionX, playerState.Y))
-                    {
-                        newPositionX = playerState.X;
-                    }
-
-                    var newPositionY = playerState.Y + y * speed * dt;
-                    if (Map.PlayerCollides(playerState.X, newPositionY))
-                    {
-                        newPositionY = playerState.Y;
-                    }
-
-                    playerState.X = newPositionX;
-                    playerState.Y = newPositionY;
+                    newPositionX = playerState.X;
                 }
 
-                if (input.Value.Attack && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
+                var newPositionY = playerState.Y + y * speed * dt;
+                if (Map.PlayerCollides(playerState.X, newPositionY) && playerState.IsAlive)
                 {
-                    // TODO: Trace through tilemap so you cant kill through stuff
-                    playerState.AttackedAt = watch.ElapsedMilliseconds;
-
-                    foreach (var otherPlayer in _players.Values)
-                    {
-                        if (otherPlayer.PlayerId == playerState.PlayerId)
-                            continue;
-
-                        var dx = playerState.X - otherPlayer.X;
-                        var dy = playerState.Y - otherPlayer.Y;
-
-                        var distance = MathF.Sqrt(dx * dx + dy * dy);
-                        if (distance <= Constants.KillDistance)
-                        {
-                            otherPlayer.IsAlive = false;
-                            otherPlayer.DiedAt = watch.ElapsedMilliseconds;
-                        }
-                    }
+                    newPositionY = playerState.Y;
                 }
+
+                playerState.X = newPositionX;
+                playerState.Y = newPositionY;
             }
-            else
+
+            if (input.Value.Attack && playerState.IsAlive && (playerState.AttackedAt == null || (watch.ElapsedMilliseconds - playerState.AttackedAt.Value) >= Constants.AttackCooldown))
             {
-                var timeDead = watch.ElapsedMilliseconds - playerState.DiedAt;
-                if (timeDead >= Constants.RespawnTime)
+                // TODO: Trace through tilemap so you cant kill through stuff
+                playerState.AttackedAt = watch.ElapsedMilliseconds;
+
+                foreach (var otherPlayer in _players.Values)
                 {
-                    playerState.IsAlive = true;
+                    if (otherPlayer.PlayerId == playerState.PlayerId)
+                        continue;
+
+                    var dx = playerState.X - otherPlayer.X;
+                    var dy = playerState.Y - otherPlayer.Y;
+
+                    var distance = MathF.Sqrt(dx * dx + dy * dy);
+                    if (distance <= Constants.KillDistance)
+                    {
+                        otherPlayer.IsAlive = false;
+                        otherPlayer.DiedAt = watch.ElapsedMilliseconds;
+                        otherPlayer.DiedAtX = otherPlayer.X;
+                        otherPlayer.DiedAtY = otherPlayer.Y;
+                    }
                 }
             }
         }

@@ -30,7 +30,7 @@ namespace PrettySus
     {
         public static PlayerColor[] Colors = new PlayerColor[]
         {
-            new (255, 255, 255), // White
+            new (128, 0, 128), // Purp
             new (255, 0, 0), // Red
             new (0, 255, 0), // Green
             new (0, 0, 255), // Blue
@@ -83,6 +83,8 @@ namespace PrettySus
         public bool IsReady { get; set; }
         public float X { get; set; }
         public float Y { get; set; }
+        public float DiedAtX { get; set; }
+        public float DiedAtY { get; set; }
         public byte ColorIndex { get; set; }
     }
 }

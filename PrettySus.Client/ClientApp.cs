@@ -20,6 +20,14 @@ namespace PrettySus.Client
         Connected
     }
 
+    struct PlayerSpriteInfo
+    {
+        public Texture2D Texture;
+        public Color Color;
+        public Rectangle Rectangle;
+        public Vector2 Position;
+    }
+
     class ClientApp : IDisposable
     {
         private readonly EventBasedNetListener _listener;
@@ -241,6 +249,10 @@ namespace PrettySus.Client
             }
 
             // Players
+            var maxSprites = _gameState.PlayerCount * 2;
+            Span<PlayerSpriteInfo> sprites = stackalloc PlayerSpriteInfo[maxSprites];
+            var spriteIndex = 0;
+
             for (var i = 0; i < _gameState.PlayerCount; i++)
             {
                 var player = _players[i];
@@ -281,11 +293,6 @@ namespace PrettySus.Client
                     animationState.IsWalking = false;
                 }
 
-                if (!player.IsAlive)
-                {
-                    texture = _playerDead;
-                }
-
                 var x = player.PrevX + diffX * alpha;
                 var y = player.PrevY + diffY * alpha;
 
@@ -294,7 +301,36 @@ namespace PrettySus.Client
                 Raylib.DrawText(player.Name, (int)(x + texture.width / 2 - width / 2), (int)(y - fontSize), fontSize, Color.WHITE);
 
                 var color = new Color(PlayerColors.Colors[player.ColorIndex].R, PlayerColors.Colors[player.ColorIndex].G, PlayerColors.Colors[player.ColorIndex].B, (byte)255);
-                Raylib.DrawTextureRec(texture, new Rectangle(0, 0, texture.width * animationState.Direction, texture.height), new Vector2((int)x, (int)y), color);
+
+                if (!player.IsAlive)
+                {
+                    sprites[spriteIndex++] = new PlayerSpriteInfo
+                    {
+                        Color = color,
+                        Texture = _playerDead,
+                        Rectangle = new Rectangle(0, 0, _playerDead.width, _playerDead.height),
+                        Position = new Vector2((int)player.DiedAtX, (int)player.DiedAtY)
+                    };
+
+                    color.a = 128;
+                }
+
+                sprites[spriteIndex++] = new PlayerSpriteInfo
+                {
+                    Color = color,
+                    Texture = texture,
+                    Rectangle = new Rectangle(0, 0, texture.width * animationState.Direction, texture.height),
+                    Position = new Vector2((int)x, (int)y)
+                };
+            }
+
+            sprites.Sort((a, b) => a.Position.Y.CompareTo(b.Position.Y));
+
+            for (var i = 0; i < maxSprites; i++)
+            {
+                ref var sprite = ref sprites[i];
+                if (sprite.Texture.id != 0)
+                    Raylib.DrawTextureRec(sprite.Texture, sprite.Rectangle, sprite.Position, sprite.Color);
             }
 
             Raylib.EndMode2D();
